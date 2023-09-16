@@ -105,8 +105,7 @@ class EnvBuilder:
         prompt = self.prompt if self.prompt is not None else context.env_name
         context.prompt = '(%s) ' % prompt
         create_if_needed(env_dir)
-        env = os.environ
-        executable = getattr(sys, '_base_executable', sys.executable)
+        executable = sys._base_executable
         dirname, exename = os.path.split(os.path.abspath(executable))
         context.executable = executable
         context.python_dir = dirname
@@ -154,6 +153,8 @@ class EnvBuilder:
                 incl = 'false'
             f.write('include-system-site-packages = %s\n' % incl)
             f.write('version = %d.%d.%d\n' % sys.version_info[:3])
+            if self.prompt is not None:
+                f.write(f'prompt = {self.prompt!r}\n')
 
     if os.name != 'nt':
         def symlink_or_copy(self, src, dst, relative_symlinks_ok=False):
@@ -210,12 +211,7 @@ class EnvBuilder:
                     basename = 'venvwlauncher'
                 src = os.path.join(os.path.dirname(src), basename + ext)
             else:
-                if basename.startswith('python'):
-                    scripts = sys.prefix
-                else:
-                    scripts = os.path.join(os.path.dirname(__file__), "scripts", "nt")
-                    src = os.path.join(scripts, basename + ext)
-
+                src = srcfn
             if not os.path.exists(src):
                 if not bad_src:
                     logger.warning('Unable to copy %r', src)
@@ -233,9 +229,9 @@ class EnvBuilder:
         binpath = context.bin_path
         path = context.env_exe
         copier = self.symlink_or_copy
-        copier(context.executable, path)
         dirname = context.python_dir
         if os.name != 'nt':
+            copier(context.executable, path)
             if not os.path.islink(path):
                 os.chmod(path, 0o755)
             for suffix in ('python', 'python3'):
